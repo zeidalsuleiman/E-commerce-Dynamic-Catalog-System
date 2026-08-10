@@ -134,7 +134,7 @@ def seed():
                 [("amman", "Amman"), ("zarqa", "Zarqa"), ("irbid", "Irbid")], 1
             ):
                 add_option(cur, a_city, code, label, i)
-            bind(cur, t_product, a_city, True, "General", 2)
+            bind(cur, t_product, a_city, False, "General", 2)
 
             # ---- attributes on VEHICLE: cars AND trucks inherit these ----
             a_make = add_attribute(cur, "make", "Make",
@@ -202,6 +202,10 @@ def seed():
             a_seats = add_attribute(cur, "seats", "Seats", "int", "number")
             bind(cur, t_car, a_seats, False, "Vehicle", 7)
 
+            # ---- override: city optional on PRODUCT, required on CAR.
+            #      Child wins in the resolver. ----
+            bind(cur, t_car, a_city, True, "General", 2)
+            
             # ---- TRUCK only ----
             a_payload = add_attribute(cur, "payload_capacity_kg", "Payload",
                                       "int", "range", unit="kg", filterable=True)
@@ -239,7 +243,7 @@ def seed():
 
             # ---- override: warranty optional on ELECTRONICS,
             #      required on MOBILE_PHONE. Child wins in the resolver. ----
-            bind(cur, t_mobile, a_warranty, True, "General", 3)
+            bind(cur, t_mobile, a_warranty, False, "General", 3)
 
             print("Seed complete.")
 
