@@ -1,13 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from app.db import query_one
-from app.resolver import resolve
+from fastapi.templating import Jinja2Templates
+
+from app.db import query, query_one
+from app.resolver import resolve, attach_options
 from app.values import create_product, load_values, ValidationError
-from app.resolver import resolve
-from fastapi import HTTPException
+from app.routes import admin
 
 app = FastAPI(title="Dynamic Catalog")
 
+templates = Jinja2Templates(directory="app/templates")
+
+admin.templates = templates
+app.include_router(admin.router)
 
 @app.get("/health")
 def health():
@@ -22,11 +27,6 @@ def health():
         "mysql_version": row["version"],
         "table_count": tables["n"],
     }
-
-
-@app.get("/", response_class=HTMLResponse)
-def index():
-    return "<h1>Dynamic Catalog</h1><p><a href='/health'>/health</a></p>"
 
 
 @app.get("/api/resolve/{code}")
@@ -65,3 +65,17 @@ def api_get_product(product_id: int):
     if not p:
         raise HTTPException(404, "Not found")
     return {"product": p, "values": load_values(product_id)}
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request):
+    cats = query(
+        "SELECT c.* FROM category c "
+        "JOIN category_product_type cpt ON cpt.category_id = c.id "
+        "ORDER BY c.sort_order"
+    )
+    links = "".join(
+        f'<li><a href="/admin/products/new/{c["slug"]}">Add {c["name"]}</a></li>'
+        for c in cats
+    )
+    return f"<h1>Dynamic Catalog</h1><ul>{links}</ul>"

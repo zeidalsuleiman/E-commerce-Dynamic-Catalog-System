@@ -1,0 +1,55 @@
+{% set value = values.get(attr.code, '') %}
+<div class="mb-3" data-field="{{ attr.code }}">
+  <label class="form-label" for="attr_{{ attr.code }}">
+    {{ attr.label }}
+    {% if attr.unit %}<span class="text-muted">({{ attr.unit }})</span>{% endif %}
+    {% if attr.is_required %}<span class="text-danger">*</span>{% endif %}
+  </label>
+
+  {% if attr.input_type in ('select', 'multiselect') %}
+    <select class="form-select"
+            id="attr_{{ attr.code }}"
+            name="{{ attr.code }}"
+            {% if attr.input_type == 'multiselect' %}multiple{% endif %}
+            {% if attr.is_required %}required{% endif %}
+            {% if attr.code in dependencies %}
+              data-depends-on="{{ dependencies[attr.code] }}" disabled
+            {% endif %}>
+      <option value="">
+        {% if attr.code in dependencies %}
+          Select {{ dependencies[attr.code] }} first
+        {% else %}
+          Choose…
+        {% endif %}
+      </option>
+      {% for opt in attr.options %}
+        <option value="{{ opt.id }}"
+                {% if value == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+
+  {% elif attr.input_type in ('number', 'range') %}
+    <input type="number" class="form-control"
+           id="attr_{{ attr.code }}" name="{{ attr.code }}"
+           value="{{ value }}"
+           {% if attr.data_type == 'decimal' %}step="0.01"{% endif %}
+           {% if attr.is_required %}required{% endif %}>
+
+  {% elif attr.input_type == 'toggle' %}
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input"
+             id="attr_{{ attr.code }}" name="{{ attr.code }}" value="1"
+             {% if value %}checked{% endif %}>
+    </div>
+
+  {% elif attr.input_type == 'date' %}
+    <input type="date" class="form-control"
+           id="attr_{{ attr.code }}" name="{{ attr.code }}" value="{{ value }}"
+           {% if attr.is_required %}required{% endif %}>
+
+  {% else %}
+    <input type="text" class="form-control"
+           id="attr_{{ attr.code }}" name="{{ attr.code }}" value="{{ value }}"
+           {% if attr.is_required %}required{% endif %}>
+  {% endif %}
+</div>

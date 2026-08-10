@@ -102,3 +102,43 @@ def get_dependencies(cur):
     """Return {child_attr_code: parent_attr_code}, e.g. {'model': 'make'}."""
     cur.execute(DEPENDENCY_SQL)
     return {r["child_code"]: r["parent_code"] for r in cur.fetchall()}
+
+
+OPTIONS_SQL = """
+SELECT o.id, o.code, o.label, o.attribute_id
+FROM attribute_option o
+LEFT JOIN attribute_option_type_scope s ON s.option_id = o.id
+WHERE o.attribute_id IN ({placeholders})
+  AND (s.product_type_id = %s OR s.option_id IS NULL)
+GROUP BY o.id, o.code, o.label, o.attribute_id
+ORDER BY o.sort_order, o.label
+"""
+
+
+def attach_options(attributes, product_type_id):
+    """Attach scoped options to every option-type attribute."""
+    option_attrs = [a for a in attributes
+                    if a["data_type"] in ("option", "multi_option")]
+    for a in attributes:
+        a["options"] = []
+    if not option_attrs:
+        return attributes
+
+    ids = [a["attribute_id"] for a in option_attrs]
+    placeholders = ", ".join(["%s"] * len(ids))
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                OPTIONS_SQL.format(placeholders=placeholders),
+                [*ids, product_type_id],
+            )
+            rows = cur.fetchall()
+
+    by_attr = {}
+    for r in rows:
+        by_attr.setdefault(r["attribute_id"], []).append(r)
+
+    for a in option_attrs:
+        a["options"] = by_attr.get(a["attribute_id"], [])
+    return attributes
