@@ -1,18 +1,22 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
 from app.db import query, query_one
 from app.resolver import resolve, attach_options
 from app.values import create_product, load_values, ValidationError
-from app.routes import admin
+from app.routes import admin, api
 
 app = FastAPI(title="Dynamic Catalog")
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
 
 admin.templates = templates
 app.include_router(admin.router)
+app.include_router(api.router)
 
 @app.get("/health")
 def health():
