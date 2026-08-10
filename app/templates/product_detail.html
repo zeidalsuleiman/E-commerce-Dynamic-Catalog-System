@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    <li class="breadcrumb-item">
+      <a href="/c/{{ product.category_slug }}">{{ product.category_name }}</a>
+    </li>
+    <li class="breadcrumb-item active">{{ product.title }}</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-lg-8">
+    <h1 class="h3 mb-1">{{ product.title }}</h1>
+    <p class="text-muted">
+      {{ product.type_name }} &middot;
+      <span class="badge bg-secondary">{{ spec_count }} attributes</span>
+    </p>
+
+    {% if product.price %}
+      <p class="fs-4 fw-semibold mb-4">{{ "{:,.0f}".format(product.price) }} JOD</p>
+    {% endif %}
+
+    {% for group, attrs in grouped %}
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">{{ group or 'Details' }}</div>
+        <table class="table table-sm mb-0">
+          <tbody>
+            {% for a in attrs %}
+              <tr>
+                <th scope="row" class="w-50 fw-normal text-muted ps-3">
+                  {{ a.label }}
+                </th>
+                <td>
+                  {{ a.value }}{% if a.unit %} {{ a.unit }}{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

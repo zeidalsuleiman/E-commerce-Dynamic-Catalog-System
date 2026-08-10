@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from app.db import query, query_one
 from app.resolver import resolve, attach_options
 from app.values import create_product, load_values, ValidationError
-from app.routes import admin, api
+from app.routes import admin, api, catalog
 
 app = FastAPI(title="Dynamic Catalog")
 
@@ -14,9 +14,12 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
 
+catalog.templates = templates
 admin.templates = templates
+
 app.include_router(admin.router)
 app.include_router(api.router)
+app.include_router(catalog.router)
 
 @app.get("/health")
 def health():
@@ -78,8 +81,11 @@ def index(request: Request):
         "JOIN category_product_type cpt ON cpt.category_id = c.id "
         "ORDER BY c.sort_order"
     )
-    links = "".join(
-        f'<li><a href="/admin/products/new/{c["slug"]}">Add {c["name"]}</a></li>'
-        for c in cats
+    products = query(
+        "SELECT p.id, p.title, p.price, c.name AS category_name "
+        "FROM product p JOIN category c ON c.id = p.primary_category_id "
+        "WHERE p.status = 'active' ORDER BY p.created_at DESC LIMIT 20"
     )
-    return f"<h1>Dynamic Catalog</h1><ul>{links}</ul>"
+    return templates.TemplateResponse(
+        request, "index.html", {"categories": cats, "products": products}
+    )
