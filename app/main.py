@@ -60,6 +60,7 @@ def api_test_product(payload: dict):
         pid = create_product(
             t["id"], c["id"], payload["title"], payload.get("price"),
             r["attributes"], r["dependencies"], payload["attributes"],
+            r["rules"],
         )
     except ValidationError as e:
         raise HTTPException(400, str(e))

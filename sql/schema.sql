@@ -3,6 +3,7 @@
 USE catalog;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS attribute_rule;
 DROP TABLE IF EXISTS product_value_multi_option;
 DROP TABLE IF EXISTS product_value_option;
 DROP TABLE IF EXISTS product_value_datetime;
@@ -119,6 +120,29 @@ CREATE TABLE attribute_option_type_scope (
     FOREIGN KEY (option_id) REFERENCES attribute_option(id) ON DELETE CASCADE,
   CONSTRAINT fk_scope_type
     FOREIGN KEY (product_type_id) REFERENCES product_type(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE attribute_rule (
+  id                   INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  product_type_id      INT UNSIGNED NOT NULL,
+  trigger_attribute_id INT UNSIGNED NOT NULL,
+  trigger_option_id    INT UNSIGNED NOT NULL,
+  target_attribute_id  INT UNSIGNED NOT NULL,
+  rule_type            ENUM('force_value','hide','require','max','min') NOT NULL,
+  rule_value           VARCHAR(64) NULL,
+  message              VARCHAR(255) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_rule (product_type_id, trigger_attribute_id,
+                      trigger_option_id, target_attribute_id, rule_type),
+  KEY idx_rule_type (product_type_id),
+  CONSTRAINT fk_rule_ptype
+    FOREIGN KEY (product_type_id) REFERENCES product_type(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rule_trigger_attr
+    FOREIGN KEY (trigger_attribute_id) REFERENCES attribute(id),
+  CONSTRAINT fk_rule_trigger_opt
+    FOREIGN KEY (trigger_option_id) REFERENCES attribute_option(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rule_target_attr
+    FOREIGN KEY (target_attribute_id) REFERENCES attribute(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Block 4 — product and values

@@ -12,6 +12,7 @@ def wipe(cur):
     """Delete all data, keep the schema."""
     cur.execute("SET FOREIGN_KEY_CHECKS = 0")
     for t in [
+        "attribute_rule",
         "product_value_multi_option", "product_value_option",
         "product_value_datetime", "product_value_text",
         "product_value_varchar", "product_value_decimal",
@@ -95,6 +96,19 @@ def scope_option(cur, option_id, type_id):
     )
 
 
+def add_rule(cur, type_id, trigger_attr_id, trigger_option_id,
+             target_attr_id, rule_type, rule_value=None, message=None):
+    cur.execute(
+        "INSERT INTO attribute_rule "
+        "(product_type_id, trigger_attribute_id, trigger_option_id, "
+        " target_attribute_id, rule_type, rule_value, message) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (type_id, trigger_attr_id, trigger_option_id, target_attr_id,
+         rule_type, rule_value, message),
+    )
+    return cur.lastrowid
+
+
 # ---------------------------------------------------------------- seed
 
 def seed():
@@ -124,8 +138,8 @@ def seed():
             # ---- attributes on PRODUCT: everything inherits these ----
             a_condition = add_attribute(cur, "condition", "Condition",
                                         "option", "select", filterable=True)
-            add_option(cur, a_condition, "new", "New", 1)
-            add_option(cur, a_condition, "used", "Used", 2)
+            o_new = add_option(cur, a_condition, "new", "New", 1)
+            o_used = add_option(cur, a_condition, "used", "Used", 2)
             bind(cur, t_product, a_condition, True, "General", 1)
 
             a_city = add_attribute(cur, "city", "City",
@@ -144,15 +158,19 @@ def seed():
             a_year = add_attribute(cur, "year", "Year",
                                    "int", "range", filterable=True)
             a_mileage = add_attribute(cur, "mileage_km", "Mileage",
-                                      "int", "range", unit="km", filterable=True)
+                                      "int", "range", unit="km",
+                                      filterable=True)
             a_trans = add_attribute(cur, "transmission", "Transmission",
                                     "option", "select", filterable=True)
 
             for attr, sort in [
-                (a_make, 1), (a_model, 2), (a_year, 3),
-                (a_mileage, 4), (a_trans, 5),
+                (a_make, 1), (a_model, 2), (a_year, 3), (a_trans, 5),
             ]:
                 bind(cur, t_vehicle, attr, True, "Vehicle", sort)
+
+            # mileage is optional at the type level; the constraint rules
+            # decide: forced to 0 when new, must be >= 1 when used
+            bind(cur, t_vehicle, a_mileage, False, "Vehicle", 4)
 
             # ---- makes, scoped to car and/or truck ----
             o_mercedes = add_option(cur, a_make, "mercedes", "Mercedes-Benz", 1)
@@ -205,10 +223,11 @@ def seed():
             # ---- override: city optional on PRODUCT, required on CAR.
             #      Child wins in the resolver. ----
             bind(cur, t_car, a_city, True, "General", 2)
-            
+
             # ---- TRUCK only ----
             a_payload = add_attribute(cur, "payload_capacity_kg", "Payload",
-                                      "int", "range", unit="kg", filterable=True)
+                                      "int", "range", unit="kg",
+                                      filterable=True)
             bind(cur, t_truck, a_payload, True, "Vehicle", 6)
 
             a_axles = add_attribute(cur, "axles", "Axles", "int", "number")
@@ -234,16 +253,38 @@ def seed():
             bind(cur, t_mobile, a_ram, True, "Performance", 1)
 
             a_storage = add_attribute(cur, "storage_gb", "Storage",
-                                      "int", "range", unit="GB", filterable=True)
+                                      "int", "range", unit="GB",
+                                      filterable=True)
             bind(cur, t_mobile, a_storage, True, "Performance", 2)
 
             a_screen = add_attribute(cur, "screen_inches", "Screen",
                                      "decimal", "number", unit="in")
             bind(cur, t_mobile, a_screen, False, "Display", 1)
 
-            # ---- override: warranty optional on ELECTRONICS,
-            #      required on MOBILE_PHONE. Child wins in the resolver. ----
+            # warranty is optional for phones; the rules below decide
+            # whether it is required (new) or hidden (used)
             bind(cur, t_mobile, a_warranty, False, "General", 3)
+
+            # ================= constraint rules =================
+            # Rules bind to a product type and fire on a specific option
+            # value. They resolve along the type chain like attributes, so
+            # a rule on VEHICLE applies to both CAR and TRUCK.
+
+            add_rule(cur, t_vehicle, a_condition, o_new, a_mileage,
+                     "force_value", "0",
+                     "A new vehicle has no mileage.")
+
+            add_rule(cur, t_vehicle, a_condition, o_used, a_mileage,
+                     "min", "1",
+                     "A used vehicle must have recorded mileage.")
+
+            add_rule(cur, t_mobile, a_condition, o_new, a_warranty,
+                     "require", None,
+                     "Warranty is required for new phones.")
+
+            add_rule(cur, t_mobile, a_condition, o_used, a_warranty,
+                     "hide", None,
+                     "Used phones are sold without manufacturer warranty.")
 
             print("Seed complete.")
 

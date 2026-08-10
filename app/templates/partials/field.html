@@ -23,8 +23,8 @@
         {% endif %}
       </option>
       {% for opt in attr.options %}
-        <option value="{{ opt.id }}"
-                {% if value == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+      <option value="{{ opt.id }}"
+        {% if value|string == opt.id|string %}selected{% endif %}>{{ opt.label }}</option>
       {% endfor %}
     </select>
 

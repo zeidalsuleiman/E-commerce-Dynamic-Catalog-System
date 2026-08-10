@@ -84,8 +84,9 @@ def resolve(product_type_id):
             )
 
             deps = get_dependencies(cur)
+            rules = get_rules(cur, chain)
 
-    return {"attributes": attributes, "dependencies": deps}
+    return {"attributes": attributes, "dependencies": deps, "rules": rules}
 
 DEPENDENCY_SQL = """
 SELECT DISTINCT
@@ -103,6 +104,42 @@ def get_dependencies(cur):
     cur.execute(DEPENDENCY_SQL)
     return {r["child_code"]: r["parent_code"] for r in cur.fetchall()}
 
+RULES_SQL = """
+SELECT
+    r.rule_type,
+    r.rule_value,
+    r.message,
+    ta.code       AS trigger_code,
+    r.trigger_option_id,
+    tgt.code      AS target_code,
+    tgt.data_type AS target_data_type
+FROM attribute_rule r
+JOIN attribute ta  ON ta.id  = r.trigger_attribute_id
+JOIN attribute tgt ON tgt.id = r.target_attribute_id
+WHERE r.product_type_id IN ({placeholders})
+"""
+
+
+def get_rules(cur, chain):
+    """Rules for every type in the chain.
+
+    Shape: {trigger_code: {trigger_option_id: [rule, ...]}}
+    Nested by option because 'new' and 'used' fire different rules.
+    """
+    placeholders = ", ".join(["%s"] * len(chain))
+    cur.execute(RULES_SQL.format(placeholders=placeholders), chain)
+
+    rules = {}
+    for r in cur.fetchall():
+        by_option = rules.setdefault(r["trigger_code"], {})
+        by_option.setdefault(r["trigger_option_id"], []).append({
+            "rule_type": r["rule_type"],
+            "rule_value": r["rule_value"],
+            "message": r["message"],
+            "target_code": r["target_code"],
+            "target_data_type": r["target_data_type"],
+        })
+    return rules
 
 OPTIONS_SQL = """
 SELECT o.id, o.code, o.label, o.attribute_id
@@ -142,3 +179,4 @@ def attach_options(attributes, product_type_id):
     for a in option_attrs:
         a["options"] = by_attr.get(a["attribute_id"], [])
     return attributes
+

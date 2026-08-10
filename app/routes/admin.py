@@ -46,6 +46,7 @@ def _context(category_slug):
         "product_type": ptype,
         "attributes": attributes,
         "dependencies": r["dependencies"],
+        "rules": r["rules"],
         "grouped": grouped,
     }
 
@@ -99,6 +100,7 @@ async def create(request: Request, category_slug: str):
             ctx["attributes"],
             ctx["dependencies"],
             data,
+            ctx["rules"],
         )
     except ValidationError as e:
         return templates.TemplateResponse(

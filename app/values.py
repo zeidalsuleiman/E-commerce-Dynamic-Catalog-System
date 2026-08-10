@@ -108,6 +108,66 @@ def validate_dependencies(cur, definitions, cleaned, dependencies):
                 f"for the selected {by_code[parent_code]['label']}"
             )
 
+def apply_rules(definitions, cleaned, rules):
+    """Enforce constraint rules. Runs after validate(), before saving.
+
+    A rule fires when its trigger attribute holds its trigger option.
+    Server-side enforcement is authoritative — the form JS is a
+    convenience and can be bypassed.
+    """
+
+    by_code = {d["code"]: d for d in definitions}
+
+    for trigger_code, by_option in rules.items():
+        selected = cleaned.get(trigger_code)
+        if selected is None:
+            continue
+
+        for rule in by_option.get(selected, []):
+            target = rule["target_code"]
+            if target not in by_code:
+                continue
+
+            label = by_code[target]["label"]
+            value = cleaned.get(target)
+            msg = rule["message"]
+            rtype = rule["rule_type"]
+
+            if rtype == "force_value":
+                expected = coerce(rule["target_data_type"],
+                                  rule["rule_value"], target)
+                if value is None:
+                    cleaned[target] = expected
+                elif value != expected:
+                    raise ValidationError(
+                        msg or f"{label} must be {rule['rule_value']}."
+                    )
+
+            elif rtype == "hide":
+                cleaned.pop(target, None)
+
+            elif rtype == "require":
+                if value is None:
+                    raise ValidationError(msg or f"{label} is required.")
+
+            elif rtype == "max":
+                limit = coerce(rule["target_data_type"],
+                               rule["rule_value"], target)
+                if value is not None and value > limit:
+                    raise ValidationError(
+                        msg or f"{label} must be at most {rule['rule_value']}."
+                    )
+
+            elif rtype == "min":
+                limit = coerce(rule["target_data_type"],
+                               rule["rule_value"], target)
+                if value is not None and value < limit:
+                    raise ValidationError(
+                        msg or f"{label} must be at least {rule['rule_value']}."
+                    )
+
+    return cleaned
+
 def _delete_existing(cur, product_id, attribute_ids):
     """Clear old values for these attributes across all value tables."""
     if not attribute_ids:
@@ -140,10 +200,10 @@ def save_values(cur, product_id, definitions, cleaned):
             )
 
 def create_product(product_type_id, category_id, title, price,
-                   definitions, dependencies, data):
-    """Validate and insert a product with all its attribute values.
-    One transaction: either everything lands or nothing does."""
+                   definitions, dependencies, data, rules=None):
     cleaned = validate(definitions, data)
+    if rules:
+        cleaned = apply_rules(definitions, cleaned, rules)
 
     with get_conn() as conn:
         with conn.cursor() as cur:
