@@ -31,12 +31,24 @@
           <tbody>
             {% for a in attrs %}
               <tr>
-                <th scope="row" class="w-50 fw-normal text-muted ps-3">
-                  {{ a.label }}
-                </th>
-                <td>
-                  {{ a.value }}{% if a.unit %} {{ a.unit }}{% endif %}
-                </td>
+                {% if a.data_type == 'multi_option' %}
+                  <th scope="row" class="w-50 fw-normal text-muted ps-3 align-top">
+                    {{ a.label }}
+                    <span class="text-muted">({{ a.value|length }})</span>
+                  </th>
+                  <td>
+                    {% for v in a.value %}
+                      <div class="text-success">&#10003;
+                        <span class="text-body">{{ v }}</span>
+                      </div>
+                    {% endfor %}
+                  </td>
+                {% else %}
+                  <th scope="row" class="w-50 fw-normal text-muted ps-3">
+                    {{ a.label }}
+                  </th>
+                  <td>{{ a.value }}{% if a.unit %} {{ a.unit }}{% endif %}</td>
+                {% endif %}
               </tr>
             {% endfor %}
           </tbody>

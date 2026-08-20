@@ -6,7 +6,24 @@
     {% if attr.is_required %}<span class="text-danger">*</span>{% endif %}
   </label>
 
-  {% if attr.input_type in ('select', 'multiselect') %}
+  {% if attr.input_type == 'checklist' %}
+    <div class="row">
+      {% for opt in attr.options %}
+        <div class="col-md-6">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox"
+                   name="{{ attr.code }}" value="{{ opt.id }}"
+                   id="f_{{ attr.code }}_{{ opt.id }}"
+                   {% if value and opt.id|string in value|map('string')|list %}checked{% endif %}>
+            <label class="form-check-label" for="f_{{ attr.code }}_{{ opt.id }}">
+              {{ opt.label }}
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+  {% elif attr.input_type in ('select', 'multiselect') %}
     <select class="form-select"
             id="attr_{{ attr.code }}"
             name="{{ attr.code }}"
@@ -16,15 +33,11 @@
               data-depends-on="{{ dependencies[attr.code] }}" disabled
             {% endif %}>
       <option value="">
-        {% if attr.code in dependencies %}
-          Select {{ dependencies[attr.code] }} first
-        {% else %}
-          Choose…
-        {% endif %}
+        {% if attr.code in dependencies %}Select {{ dependencies[attr.code] }} first{% else %}Choose…{% endif %}
       </option>
       {% for opt in attr.options %}
-      <option value="{{ opt.id }}"
-        {% if value|string == opt.id|string %}selected{% endif %}>{{ opt.label }}</option>
+        <option value="{{ opt.id }}"
+                {% if value|string == opt.id|string %}selected{% endif %}>{{ opt.label }}</option>
       {% endfor %}
     </select>
 

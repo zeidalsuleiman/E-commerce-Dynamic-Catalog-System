@@ -85,11 +85,19 @@ async def create(request: Request, category_slug: str):
         return HTMLResponse("Unknown category", status_code=404)
 
     form = await request.form()
-    data = {
-        a["code"]: form.get(a["code"])
-        for a in ctx["attributes"]
-        if form.get(a["code"]) not in (None, "")
-    }
+
+    # multi_option fields submit several values under one name, so they
+    # need getlist(); everything else takes a single value.
+    data = {}
+    for a in ctx["attributes"]:
+        if a["data_type"] == "multi_option":
+            values = form.getlist(a["code"])
+            if values:
+                data[a["code"]] = values
+        else:
+            v = form.get(a["code"])
+            if v not in (None, ""):
+                data[a["code"]] = v
 
     try:
         product_id = create_product(

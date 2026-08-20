@@ -67,7 +67,7 @@ CREATE TABLE attribute (
   code          VARCHAR(64) NOT NULL,
   label         VARCHAR(120) NOT NULL,
   data_type     ENUM('int','decimal','varchar','text','datetime','option','multi_option') NOT NULL,
-  input_type    ENUM('text','number','select','multiselect','range','toggle','date') NOT NULL,
+  input_type    ENUM('text','number','select','multiselect','range','toggle','date','checklist') NOT NULL,
   unit          VARCHAR(16) NULL,
   is_filterable TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (id),

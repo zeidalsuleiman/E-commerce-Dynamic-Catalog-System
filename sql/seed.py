@@ -265,6 +265,38 @@ def seed():
             # whether it is required (new) or hidden (used)
             bind(cur, t_mobile, a_warranty, False, "General", 3)
 
+            # ---- feature checklists on VEHICLE ----
+            # multi_option: many values per product, stored one row each
+            # in product_value_multi_option
+            a_interior = add_attribute(cur, "interior_features",
+                                       "Interior Features",
+                                       "multi_option", "checklist",
+                                       filterable=True)
+            for i, (code, label) in enumerate([
+                ("leather_seats", "Leather Seats"),
+                ("sport_seats", "Sport Seats"),
+                ("air_conditioning", "Air Conditioning"),
+                ("navigation", "Navigation System"),
+                ("cruise_control", "Cruise Control"),
+                ("heated_seats", "Heated Seats"),
+            ], 1):
+                add_option(cur, a_interior, code, label, i)
+            bind(cur, t_vehicle, a_interior, False, "Interior", 1)
+
+            a_exterior = add_attribute(cur, "exterior_features",
+                                       "Exterior Features",
+                                       "multi_option", "checklist",
+                                       filterable=True)
+            for i, (code, label) in enumerate([
+                ("alloy_wheels", "Alloy Wheels"),
+                ("sunroof", "Sunroof"),
+                ("fog_lights", "Fog Lights"),
+                ("roof_rails", "Roof Rails"),
+                ("tinted_windows", "Tinted Windows"),
+            ], 1):
+                add_option(cur, a_exterior, code, label, i)
+            bind(cur, t_vehicle, a_exterior, False, "Exterior", 1)
+
             # ================= constraint rules =================
             # Rules bind to a product type and fire on a specific option
             # value. They resolve along the type chain like attributes, so
