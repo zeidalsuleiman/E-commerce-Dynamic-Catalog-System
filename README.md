@@ -16,7 +16,7 @@ systems: **the category defines a schema, and that schema is data.**
 
 ## Stack
 
-MySQL 8.0 · Python 3.12 · FastAPI · Jinja2 · raw SQL, no ORM
+MySQL 8.0 · Python 3.12 · FastAPI · Jinja2 · Pillow · raw SQL, no ORM
 
 No ORM by choice: the resolver needs recursive CTEs, the value layer selects
 its table at runtime, and filtering builds N dynamic `EXISTS` clauses. All
@@ -38,19 +38,21 @@ table are four consumers of one resolver call.
 
 ## What was built
 
-| # | Phase | Outcome |
-|---|---|---|
-| 1 | Schema | 17 tables — taxonomy, dictionary, product, 7 value tables |
-| 2 | Connection layer | PyMySQL helpers, transaction-scoped context manager |
-| 3 | Seed | Vehicles and mobiles, with make→model cascade and type scoping |
-| 4 | Resolver | Recursive CTE walks the type chain, child overrides parent |
-| 5 | Value layer | Type router, coercion, validation, dependency checks |
-| 6 | Dynamic form | Renders itself from the resolver; one template, every vertical |
-| 7 | Cascades | Dependent dropdowns filtered by parent choice *and* product type |
-| 8 | Product page | Grouped spec table from stored values plus definitions |
-| 9 | Category page | Filter sidebar generated from `is_filterable`; faceted search |
+| #  | Phase | Outcome |
+|----|-------|---------|
+| 1  | Schema | 18 tables — taxonomy, dictionary, product, 7 value tables, images |
+| 2  | Connection layer | PyMySQL helpers, transaction-scoped context manager |
+| 3  | Seed | Vehicles and mobiles, with make→model cascade and type scoping |
+| 4  | Resolver | Recursive CTE walks the type chain, child overrides parent |
+| 5  | Value layer | Type router, coercion, validation, dependency checks |
+| 6  | Dynamic form | Renders itself from the resolver; one template, every vertical |
+| 7  | Cascades | Dependent dropdowns filtered by parent choice *and* product type |
+| 8  | Product page | Grouped spec table from stored values plus definitions |
+| 9  | Category page | Filter sidebar generated from `is_filterable`; faceted search |
 | 10 | Furniture | A new vertical added with data only — the proof |
 | 11 | Constraint rules | Conditional cross-attribute rules with type-chain inheritance |
+| 12 | Feature checklists | Multi-select tick lists — no schema change required |
+| 13 | Product images | New table — where the "data only" boundary sits |
 
 ### Verified capabilities
 
@@ -67,7 +69,27 @@ table are four consumers of one resolver call.
 - **Server-side enforcement** — verified by bypassing the form entirely with a
   crafted API request
 - **Data-only extension** — Furniture, Closets, Beds, and Desks added while
-  the server was running; `git status` shows no application file changed
+  the server was running; the diff shows no application file changed
+- **Feature checklists** — added using storage that had existed unused since
+  Phase 5; `product_value_multi_option` received its first rows
+
+---
+
+## Where the claim stops
+
+Phases 12 and 13 were built back to back as a deliberate test of the design's
+boundary.
+
+**Feature checklists needed no schema change.** Multi-valued attributes were
+already supported end to end; the work was a checkbox widget and a display
+format.
+
+**Product images needed a new table.** An image is not an attribute value —
+it is a related entity with a file on disk, an explicit order, and a lifecycle.
+
+The claim this project makes is therefore precise: *adding a new product
+category requires no schema change.* Adding a new **kind of thing** — images,
+reviews, price history — does. See [`docs/08-extending.md`](docs/08-extending.md).
 
 ---
 
@@ -95,10 +117,10 @@ uvicorn app.main:app --reload
 Then open http://127.0.0.1:8000
 
 | Route | Purpose |
-|---|---|
+|-------|---------|
 | `/` | Categories and recent products |
 | `/c/{slug}` | Category page with generated filters |
-| `/products/{id}` | Product detail with grouped spec table |
+| `/products/{id}` | Product detail with gallery and spec table |
 | `/admin/products/new/{slug}` | The dynamic form |
 | `/api/resolve/{TYPE_CODE}` | Debug: the resolved attribute set |
 | `/docs` | FastAPI interactive API docs |
@@ -116,14 +138,15 @@ a working form for a product type that did not exist appears.
 ## Documentation
 
 | File | Contents |
-|---|---|
+|------|----------|
 | [`docs/01-problem-and-approach.md`](docs/01-problem-and-approach.md) | Why table-per-type fails; what this pattern is called; precedent |
-| [`docs/02-schema.md`](docs/02-schema.md) | All 17 tables, why value tables split by type, the filter index |
+| [`docs/02-schema.md`](docs/02-schema.md) | All 18 tables, why value tables split by type, the filter index |
 | [`docs/03-resolver.md`](docs/03-resolver.md) | The recursive CTE, root-first merge, why raw SQL |
-| [`docs/04-values-and-insertion.md`](docs/04-values-and-insertion.md) | The type router, and all four insertion methods |
+| [`docs/04-values-and-insertion.md`](docs/04-values-and-insertion.md) | The type router, and every insertion method |
 | [`docs/05-runtime-flow.md`](docs/05-runtime-flow.md) | Setup workflow and per-request flow |
 | [`docs/06-constraint-rules.md`](docs/06-constraint-rules.md) | The rules engine, and two silent-failure bugs |
 | [`docs/07-limitations.md`](docs/07-limitations.md) | Honest gaps and what would come next |
+| [`docs/08-extending.md`](docs/08-extending.md) | Where "no schema change" stops applying, with two worked examples |
 
 ---
 
@@ -133,18 +156,21 @@ a working form for a product type that did not exist appears.
 app/
   db.py               connection helpers, transaction context manager
   resolver.py         the type-chain walk and merge
-  values.py           type router, validation, read/write
+  values.py           type router, validation, read/write, image queries
   filters.py          EXISTS-per-filter query builder, facet counts
-  main.py             app setup, health, debug routes
+  uploads.py          image validation, storage, and deletion
+  main.py             app setup, homepage, health, debug routes
   routes/
     admin.py          dynamic product form
     catalog.py        category and product pages
     api.py            cascade options endpoint
   templates/          Jinja2, including partials/field.html
   static/cascade.js   cascades and constraint rules
+  static/uploads/     uploaded images (gitignored)
 
 sql/
-  schema.sql              17 tables (dev rebuild — destroys data)
+  setup.sql               database and user creation
+  schema.sql              18 tables (dev rebuild — destroys data)
   seed.py                 vehicles and mobiles
   add_furniture.py        a vertical added post-launch, in Python
   add_product_type.sql    the same, in raw SQL, as a template
@@ -158,5 +184,5 @@ docs/                 phase documentation
 
 This implements the **catalog data model** — the layer that makes
 per-category filters and dynamic seller forms possible. Offers, search
-infrastructure, media, internationalisation, orders, and payments are out of
-scope by design, not oversight. See `docs/07-limitations.md`.
+infrastructure, internationalisation, orders, and payments are out of scope by
+design, not oversight. See [`docs/07-limitations.md`](docs/07-limitations.md).
