@@ -8,9 +8,11 @@ from itertools import groupby
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.db import query, query_one
+from app.db import query, query_one, get_conn
 from app.resolver import resolve, attach_options
-from app.values import create_product, ValidationError
+from app.values import create_product, ValidationError, save_images
+
+from app.uploads import save_image, UploadError, delete_image_file
 
 router = APIRouter()
 templates = None          # injected from main.py
@@ -86,8 +88,6 @@ async def create(request: Request, category_slug: str):
 
     form = await request.form()
 
-    # multi_option fields submit several values under one name, so they
-    # need getlist(); everything else takes a single value.
     data = {}
     for a in ctx["attributes"]:
         if a["data_type"] == "multi_option":
@@ -98,6 +98,8 @@ async def create(request: Request, category_slug: str):
             v = form.get(a["code"])
             if v not in (None, ""):
                 data[a["code"]] = v
+
+    uploads = [f for f in form.getlist("images") if getattr(f, "filename", "")]
 
     try:
         product_id = create_product(
@@ -117,5 +119,25 @@ async def create(request: Request, category_slug: str):
             {**ctx, "values": data, "form": dict(form), "error": str(e)},
             status_code=400,
         )
+
+    # Images are saved after the product, since they need its id.
+    if uploads:
+        saved = []
+        try:
+            for i, f in enumerate(uploads):
+                saved.append(save_image(product_id, f, sort_order=i))
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    save_images(cur, product_id, saved)
+        except UploadError as e:
+            for m in saved:
+                delete_image_file(m["file_path"])
+            return templates.TemplateResponse(
+                request,
+                "product_form.html",
+                {**ctx, "values": data, "form": dict(form),
+                 "error": f"Product saved, but image upload failed: {e}"},
+                status_code=400,
+            )
 
     return RedirectResponse(f"/products/{product_id}", status_code=303)

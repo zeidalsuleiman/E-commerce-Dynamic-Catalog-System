@@ -24,6 +24,23 @@
       <p class="fs-4 fw-semibold mb-4">{{ "{:,.0f}".format(product.price) }} JOD</p>
     {% endif %}
 
+    {% if images %}
+      <div class="mb-4">
+        <img src="/static/uploads/{{ images[0].file_path }}"
+             class="img-fluid rounded mb-2"
+             alt="{{ images[0].alt_text or product.title }}">
+        {% if images|length > 1 %}
+          <div class="d-flex gap-2 flex-wrap">
+            {% for img in images[1:] %}
+              <img src="/static/uploads/{{ img.file_path }}"
+                   class="rounded" style="width:90px;height:70px;object-fit:cover"
+                   alt="{{ img.alt_text or product.title }}">
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
     {% for group, attrs in grouped %}
       <div class="card mb-3">
         <div class="card-header fw-semibold">{{ group or 'Details' }}</div>

@@ -5,3 +5,4 @@ __pycache__/
 .vscode/
 .idea/
 *.log
+app/static/uploads/

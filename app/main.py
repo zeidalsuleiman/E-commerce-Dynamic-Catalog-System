@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db import query, query_one
 from app.resolver import resolve, attach_options
-from app.values import create_product, load_values, ValidationError
+from app.values import create_product, load_values, ValidationError, load_primary_images
 from app.routes import admin, api, catalog
 
 app = FastAPI(title="Dynamic Catalog")
@@ -87,6 +87,10 @@ def index(request: Request):
         "FROM product p JOIN category c ON c.id = p.primary_category_id "
         "WHERE p.status = 'active' ORDER BY p.created_at DESC LIMIT 20"
     )
+    thumbs = load_primary_images([p["id"] for p in products])
+    for p in products:
+        p["thumb"] = thumbs.get(p["id"])
+
     return templates.TemplateResponse(
         request, "index.html", {"categories": cats, "products": products}
     )

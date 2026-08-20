@@ -7,7 +7,7 @@ codebase should decide which value table to use.
 from decimal import Decimal, InvalidOperation
 from datetime import datetime
 
-from app.db import get_conn
+from app.db import get_conn, query
 
 
 # data_type -> (table, value column)
@@ -275,3 +275,38 @@ def load_values(product_id):
 
     return {"display": display, "option_ids": ids}
 
+
+def save_images(cur, product_id, image_metas):
+    """Insert image rows for a product."""
+    for m in image_metas:
+        cur.execute(
+            "INSERT INTO product_image "
+            "(product_id, file_path, sort_order, is_primary, "
+            " width, height, file_size) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (product_id, m["file_path"], m["sort_order"], m["is_primary"],
+             m["width"], m["height"], m["file_size"]),
+        )
+
+
+def load_images(product_id):
+    """All images for a product, primary first."""
+    return query(
+        "SELECT id, file_path, alt_text, sort_order, is_primary, width, height "
+        "FROM product_image WHERE product_id = %s "
+        "ORDER BY is_primary DESC, sort_order",
+        (product_id,),
+    )
+
+
+def load_primary_images(product_ids):
+    """Primary image per product, for result cards. Returns {id: path}."""
+    if not product_ids:
+        return {}
+    placeholders = ", ".join(["%s"] * len(product_ids))
+    rows = query(
+        f"SELECT product_id, file_path FROM product_image "
+        f"WHERE product_id IN ({placeholders}) AND is_primary = 1",
+        product_ids,
+    )
+    return {r["product_id"]: r["file_path"] for r in rows}

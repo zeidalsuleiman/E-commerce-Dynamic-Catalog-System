@@ -3,6 +3,7 @@
 USE catalog;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS product_image;
 DROP TABLE IF EXISTS attribute_rule;
 DROP TABLE IF EXISTS product_value_multi_option;
 DROP TABLE IF EXISTS product_value_option;
@@ -162,6 +163,24 @@ CREATE TABLE product (
     FOREIGN KEY (product_type_id) REFERENCES product_type(id),
   CONSTRAINT fk_product_category
     FOREIGN KEY (primary_category_id) REFERENCES category(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE product_image (
+  id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  product_id BIGINT UNSIGNED NOT NULL,
+  file_path  VARCHAR(255) NOT NULL,
+  alt_text   VARCHAR(255) NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_primary TINYINT(1) NOT NULL DEFAULT 0,
+  width      INT NULL,
+  height     INT NULL,
+  file_size  INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_product_images (product_id, sort_order),
+  KEY idx_primary (product_id, is_primary),
+  CONSTRAINT fk_image_product
+    FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE product_value_int (

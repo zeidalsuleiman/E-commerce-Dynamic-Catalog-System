@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 
 from app.db import query_one
 from app.resolver import resolve, attach_options
-from app.values import load_values
+from app.values import load_values, load_images, load_primary_images
 
 from app.filters import parse_filters, search_products, facet_counts
 
@@ -29,6 +29,8 @@ def product_detail(request: Request, product_id: int):
     if not product:
         return HTMLResponse("Product not found", status_code=404)
 
+    images = load_images(product_id)
+
     r = resolve(product["product_type_id"])
     values = load_values(product_id)["display"]
 
@@ -45,9 +47,9 @@ def product_detail(request: Request, product_id: int):
     ]
 
     return templates.TemplateResponse(
-        request,
-        "product_detail.html",
-        {"product": product, "grouped": grouped, "spec_count": len(specs)},
+        request, "product_detail.html",
+        {"product": product, "grouped": grouped,
+         "spec_count": len(specs), "images": images},
     )
 
 
@@ -74,7 +76,11 @@ def category_page(request: Request, category_slug: str):
 
     params = request.query_params
     filters = parse_filters(params, attributes)
+    
     products = search_products(category["id"], filters)
+    thumbs = load_primary_images([p["id"] for p in products])
+    for p in products:
+        p["thumb"] = thumbs.get(p["id"])
 
     # Attach counts and current selections to each facet.
     active = {f["attr"]["code"]: f for f in filters}

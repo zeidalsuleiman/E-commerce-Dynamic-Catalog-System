@@ -19,11 +19,17 @@
     {% if products %}
       <div class="list-group">
         {% for p in products %}
-          <a class="list-group-item list-group-item-action d-flex justify-content-between"
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-3"
              href="/products/{{ p.id }}">
-            <span>{{ p.title }}
-              <small class="text-muted">— {{ p.category_name }}</small></span>
-            {% if p.price %}<span>{{ "{:,.0f}".format(p.price) }} JOD</span>{% endif %}
+            {% if p.thumb %}
+              <img src="/static/uploads/{{ p.thumb }}"
+                   style="width:70px;height:55px;object-fit:cover" class="rounded" alt="">
+            {% else %}
+              <div class="bg-light rounded" style="width:70px;height:55px"></div>
+            {% endif %}
+            <span class="flex-grow-1">{{ p.title }}</span>
+            <span class="text-muted small">{{ p.category_name }}</span>
+            {% if p.price %}<span class="fw-semibold">{{ "{:,.0f}".format(p.price) }} JOD</span>{% endif %}
           </a>
         {% endfor %}
       </div>
