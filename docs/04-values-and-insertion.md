@@ -75,6 +75,31 @@ This is what stops "BMW C-Class" reaching the database. The cascade dropdown
 makes invalid combinations hard to select in a browser, but a crafted POST
 bypasses the frontend entirely — so the check runs server-side.
 
+### Multi-valued attributes
+
+`multi_option` is the only data type where one product holds several values
+for one attribute. Three places handle it differently:
+
+**Reading the form.** Several checkboxes share a field name, so `form.get()`
+returns only the first. The create route branches:
+
+```python
+if a["data_type"] == "multi_option":
+    values = form.getlist(a["code"])
+else:
+    v = form.get(a["code"])
+```
+
+**Saving.** `save_values()` loops over the list and writes one row per
+selection into `product_value_multi_option`, whose primary key includes
+`option_id` precisely so several rows can share a product and attribute.
+
+**Loading.** `load_values()` returns a list rather than a scalar, which is
+what lets the product page render a tick list and show a count.
+
+This entire path was built in Phase 5 and first exercised in Phase 12. The
+feature checklists required no change to any of it.
+
 ### The write itself
 
 ```python
@@ -113,7 +138,8 @@ therefore their own transaction.
 
 ```python
 load_values(product_id) -> {
-    "display":    {"make": "Mercedes-Benz", "year": "2021"},
+    "display":    {"make": "Mercedes-Benz", "year": "2021",
+                   "interior_features": ["Leather Seats", "Air Conditioning"]},
     "option_ids": {"make": 6},
 }
 ```
@@ -125,11 +151,14 @@ types across branches.
 **Two return shapes on purpose.** The spec table needs "Mercedes-Benz"; an
 edit form needs `6` to pre-select the dropdown. Same rows, two consumers.
 
+Multi-valued attributes come back as lists, which is why the product page can
+render `Interior Features (2)` with a tick per entry.
+
 ---
 
 # Part 4 — Insertion methods
 
-Four ways to get data into the system, each suited to different work.
+Five ways to get data into the system, each suited to different work.
 
 ## Method 1 — The dynamic web form
 
@@ -166,13 +195,13 @@ where the cascade and rule UX actually assists the person entering data.
 }
 ```
 
-Option attributes take **option ids**; scalar attributes take raw values.
+Option attributes take **option ids**; scalar attributes take raw values;
+multi-valued attributes take a list of ids.
 
 | | |
 |---|---|
 | Best for | Testing, scripted imports, integration |
 | Validation | Full — identical code path to the form |
-| Cascades | N/A (no UI), but dependencies are still enforced |
 | Effort | Construct JSON, know the option ids |
 
 **Important:** this endpoint passes `rules` to `create_product`. During
@@ -194,8 +223,8 @@ ORDER BY a.code, o.sort_order;
 **`sql/add_product_type.sql`**
 
 For dictionary changes — new categories, product types, attributes, options,
-bindings. Runs in DBeaver against a live database; the application picks up
-changes on the next request with no restart.
+bindings. Runs in a database client against a live database; the application
+picks up changes on the next request with no restart.
 
 ```sql
 -- A complete new vertical in three statements
@@ -284,6 +313,41 @@ idempotent, so it can be tweaked and re-run freely.
 > If you would copy-paste a statement more than three times with only the
 > values changing, use Python.
 
+## Method 5 — Image upload
+
+Distinct from the other four because it writes a file as well as a row.
+
+`app/uploads.py` handles validation and storage. Four security decisions:
+
+**Size checked before processing.** A large upload should never reach the
+image library.
+
+**Content verified, not the extension.** The file is opened with Pillow and
+`verify()` is called. A `.jpg` containing anything else is rejected. Checking
+the filename extension proves nothing.
+
+**Filename generated.** A UUID, never the user's filename — which could
+contain path traversal sequences or shell metacharacters.
+
+**Re-encoded on save.** Writing through Pillow rather than copying bytes
+strips embedded payloads that could survive a naive copy.
+
+Images are saved **after** the product, since they need its id, which means
+they cannot share the product's transaction. If an upload fails, files already
+written are cleaned up but the product row remains. This is a deliberate
+trade: a product without images is recoverable, whereas a failed save that
+leaves orphaned files is not.
+
+Thumbnail lookups for listing pages are batched — `load_primary_images()`
+takes a list of product ids and returns a `{id: path}` map in one query,
+rather than one query per result card.
+
+| | |
+|---|---|
+| Best for | Product photos |
+| Validation | Content, size, and format |
+| Effort | Select files in the form |
+
 ---
 
 ## Choosing a method
@@ -294,6 +358,7 @@ idempotent, so it can be tweaked and re-run freely.
 | Add many products from a data source | JSON API, scripted |
 | Add one attribute to an existing type | Raw SQL |
 | Add a whole new vertical | Python script |
+| Add product photos | Image upload, via the form |
 | Show someone how the model works | Raw SQL — nothing between reader and database |
 
 Both `add_product_type.sql` and `add_furniture.py` demonstrate the same
