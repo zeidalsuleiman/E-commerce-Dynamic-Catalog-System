@@ -1,0 +1,41 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: catalog
+      MYSQL_USER: catalog_user
+      MYSQL_PASSWORD: ${DB_PASSWORD:-change_me}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_change_me}
+    ports:
+      - "3307:3306"          # exposed for local debugging; remove/bind to localhost only in prod
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_change_me}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: catalog
+      DB_USER: catalog_user
+      DB_PASSWORD: ${DB_PASSWORD:-change_me}
+      APP_ENV: ${APP_ENV:-production}
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads:/app/app/static/uploads
+
+volumes:
+  db_data:
+  uploads:
