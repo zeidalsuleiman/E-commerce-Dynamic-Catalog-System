@@ -4,7 +4,6 @@ Files are stored on disk under app/static/uploads/products/{product_id}/
 and referenced from product_image.file_path. The database never holds
 image bytes.
 """
-import os
 import uuid
 from pathlib import Path
 
@@ -38,7 +37,7 @@ def save_image(product_id, upload_file, sort_order=0):
     try:
         img = Image.open(upload_file.file)
         img.verify()
-    except Exception:
+    except (OSError, ValueError):
         raise UploadError(f"{upload_file.filename} is not a valid image.")
 
     upload_file.file.seek(0)
