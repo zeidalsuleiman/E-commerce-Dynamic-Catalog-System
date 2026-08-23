@@ -1,12 +1,12 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.db import query, query_one
-from app.resolver import resolve, attach_options
-from app.values import create_product, load_values, ValidationError, load_primary_images
+from app.resolver import resolve
 from app.routes import admin, api, catalog
+from app.values import ValidationError, create_product, load_primary_images, load_values
 
 app = FastAPI(title="Dynamic Catalog")
 

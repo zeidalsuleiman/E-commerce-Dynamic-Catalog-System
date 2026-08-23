@@ -6,11 +6,11 @@ and need no MySQL connection. Tests that DO need the DB (save_values,
 create_product, etc.) belong in a separate integration test module and
 are intentionally not included here.
 """
-import pytest
 from decimal import Decimal
 
-from app.values import coerce, validate, apply_rules, ValidationError
+import pytest
 
+from app.values import ValidationError, apply_rules, coerce, validate
 
 # ---------- coerce ----------
 

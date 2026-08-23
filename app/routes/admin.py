@@ -8,11 +8,10 @@ from itertools import groupby
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.db import query, query_one, get_conn
-from app.resolver import resolve, attach_options
-from app.values import create_product, ValidationError, save_images
-
-from app.uploads import save_image, UploadError, delete_image_file
+from app.db import get_conn, query, query_one
+from app.resolver import attach_options, resolve
+from app.uploads import UploadError, delete_image_file, save_image
+from app.values import ValidationError, create_product, save_images
 
 router = APIRouter()
 templates = None          # injected from main.py
@@ -126,9 +125,8 @@ async def create(request: Request, category_slug: str):
         try:
             for i, f in enumerate(uploads):
                 saved.append(save_image(product_id, f, sort_order=i))
-            with get_conn() as conn:
-                with conn.cursor() as cur:
-                    save_images(cur, product_id, saved)
+            with get_conn() as conn, conn.cursor() as cur:
+                save_images(cur, product_id, saved)
         except UploadError as e:
             for m in saved:
                 delete_image_file(m["file_path"])

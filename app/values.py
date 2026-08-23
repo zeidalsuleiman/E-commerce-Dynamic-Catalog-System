@@ -4,11 +4,10 @@ Every value lives in one of seven tables, chosen by attribute.data_type.
 TABLE_BY_TYPE is the single source of that mapping — nothing else in the
 codebase should decide which value table to use.
 """
-from decimal import Decimal, InvalidOperation
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from app.db import get_conn, query
-
 
 # data_type -> (table, value column)
 TABLE_BY_TYPE = {
@@ -205,19 +204,18 @@ def create_product(product_type_id, category_id, title, price,
     if rules:
         cleaned = apply_rules(definitions, cleaned, rules)
 
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            validate_dependencies(cur, definitions, cleaned, dependencies)
+    with get_conn() as conn, conn.cursor() as cur:
+        validate_dependencies(cur, definitions, cleaned, dependencies)
 
-            cur.execute(
-                "INSERT INTO product "
-                "(product_type_id, primary_category_id, title, price, status) "
-                "VALUES (%s, %s, %s, %s, 'active')",
-                (product_type_id, category_id, title, price),
-            )
-            product_id = cur.lastrowid
+        cur.execute(
+            "INSERT INTO product "
+            "(product_type_id, primary_category_id, title, price, status) "
+            "VALUES (%s, %s, %s, %s, 'active')",
+            (product_type_id, category_id, title, price),
+        )
+        product_id = cur.lastrowid
 
-            save_values(cur, product_id, definitions, cleaned)
+        save_values(cur, product_id, definitions, cleaned)
 
     return product_id
 
@@ -258,10 +256,9 @@ WHERE v.product_id = %(pid)s
 
 def load_values(product_id):
     """Return {code: display_value} plus {code: option_id} for form prefill."""
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(LOAD_SQL, {"pid": product_id})
-            rows = cur.fetchall()
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(LOAD_SQL, {"pid": product_id})
+        rows = cur.fetchall()
 
     display, ids = {}, {}
     for r in rows:

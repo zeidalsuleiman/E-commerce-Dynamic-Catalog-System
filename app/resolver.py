@@ -5,7 +5,6 @@ root-first, so a child type's binding overrides its parent's.
 """
 from app.db import get_conn
 
-
 CHAIN_SQL = """
 WITH RECURSIVE chain AS (
     SELECT id, parent_type_id, 0 AS depth
@@ -61,30 +60,29 @@ def resolve(product_type_id):
 
     Attributes are merged root-first, so the most specific type wins.
     """
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            chain = get_type_chain(cur, product_type_id)
+    with get_conn() as conn, conn.cursor() as cur:
+        chain = get_type_chain(cur, product_type_id)
 
-            placeholders = ", ".join(["%s"] * len(chain))
-            cur.execute(BINDINGS_SQL.format(placeholders=placeholders), chain)
-            rows = cur.fetchall()
+        placeholders = ", ".join(["%s"] * len(chain))
+        cur.execute(BINDINGS_SQL.format(placeholders=placeholders), chain)
+        rows = cur.fetchall()
 
-            by_type = {}
-            for r in rows:
-                by_type.setdefault(r["product_type_id"], []).append(r)
+        by_type = {}
+        for r in rows:
+            by_type.setdefault(r["product_type_id"], []).append(r)
 
-            merged = {}
-            for type_id in chain:                    # root -> leaf
-                for r in by_type.get(type_id, []):
-                    merged[r["code"]] = dict(r)      # later write wins
+        merged = {}
+        for type_id in chain:                    # root -> leaf
+            for r in by_type.get(type_id, []):
+                merged[r["code"]] = dict(r)      # later write wins
 
-            attributes = sorted(
-                merged.values(),
-                key=lambda a: (a["group_name"] or "", a["sort_order"]),
-            )
+        attributes = sorted(
+            merged.values(),
+            key=lambda a: (a["group_name"] or "", a["sort_order"]),
+        )
 
-            deps = get_dependencies(cur)
-            rules = get_rules(cur, chain)
+        deps = get_dependencies(cur)
+        rules = get_rules(cur, chain)
 
     return {"attributes": attributes, "dependencies": deps, "rules": rules}
 
@@ -164,13 +162,12 @@ def attach_options(attributes, product_type_id):
     ids = [a["attribute_id"] for a in option_attrs]
     placeholders = ", ".join(["%s"] * len(ids))
 
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                OPTIONS_SQL.format(placeholders=placeholders),
-                [*ids, product_type_id],
-            )
-            rows = cur.fetchall()
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            OPTIONS_SQL.format(placeholders=placeholders),
+            [*ids, product_type_id],
+        )
+        rows = cur.fetchall()
 
     by_attr = {}
     for r in rows:

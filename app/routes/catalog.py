@@ -5,10 +5,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.db import query_one
-from app.resolver import resolve, attach_options
-from app.values import load_values, load_images, load_primary_images
-
-from app.filters import parse_filters, search_products, facet_counts
+from app.filters import facet_counts, parse_filters, search_products
+from app.resolver import attach_options, resolve
+from app.values import load_images, load_primary_images, load_values
 
 router = APIRouter()
 templates = None          # injected from main.py
